@@ -5,7 +5,7 @@
 import shap
 import joblib
 import pandas as pd
-from pandas.plotting import table 
+import numpy as np
 import matplotlib.pyplot as plt
 from sklearn.preprocessing import normalize
 from sklearn.model_selection import train_test_split
@@ -95,24 +95,26 @@ def perform_feature_engineering(df, response=['Customer_Age', 'Dependent_count',
                 y_test: y testing data
         '''
         y = df['Churn']
-        X = pd.DataFrame()
-        X[response] = df[response]
+        X_data = pd.DataFrame()
+        X_data[response] = df[response]
         model_dict = dict()
-        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size= 0.3, random_state=42)
+        X_data_2 = X_data
+        X_train, X_test, y_train, y_test = train_test_split(X_data, y, test_size= 0.3, random_state=42)
         
         model_dict['X_train']=X_train
         model_dict['X_test']=X_test
         model_dict['y_train']=y_train
         model_dict['y_test']=y_test
         
-        return (model_dict)
+        return (model_dict, X_data_2)
 
 def classification_report_image(y_train,
                                 y_test,
                                 y_train_preds_lr,
                                 y_train_preds_rf,
                                 y_test_preds_lr,
-                                y_test_preds_rf):
+                                y_test_preds_rf,
+                                output_pth):
         '''
         produces classification report for training and testing results and stores report as image
         in images folder
@@ -127,55 +129,70 @@ def classification_report_image(y_train,
         output:
                 None
         '''
-        # scores
 
         plt.clf()
         plt.rc('figure', figsize=(5, 5))
-        plt.text(0.01, 1.25, str('Random Forest Train'), {
+        plt.text(0.01, 1, str('Random Forest Train Results'), {
                 'fontsize': 10}, fontproperties='monospace')
-        plt.text(0.01, 0.05, str(classification_report(y_test, y_test_preds_rf)), {
-                'fontsize': 10}, fontproperties='monospace')  # approach improved by OP -> monospace!
-        plt.text(0.01, 0.6, str('Random Forest Test'), {
-                'fontsize': 10}, fontproperties='monospace')
-        plt.text(0.01, 0.7, str(classification_report(y_train, y_train_preds_rf)), {
-                'fontsize': 10}, fontproperties='monospace')  # approach improved by OP -> monospace!
-        plt.savefig('./' + 'Random_Forest_result.png')
-        print('Save Random Forest report figure')
-
-
-
-        print('random forest results')
-        print('test results')
-        print(classification_report(y_test, y_test_preds_rf))
-        ax = plt.subplot(111, frame_on=False) # no visible frame
-        ax.xaxis.set_visible(False)  # hide the x axis
-        ax.yaxis.set_visible(False)  # hide the y axis
-        df = pd.DataFrame(classification_report(y_test, y_test_preds_rf, output_dict=True)).transpose()
-        table(ax,df)
-        plt.savefig('mytesttable_2.png')
-        print('train results')
-        print(classification_report(y_train, y_train_preds_rf))
-
-        print('logistic regression results')
-        print('test results')
-        print(classification_report(y_test, y_test_preds_lr))
-        print('train results')
-        print(classification_report(y_train, y_train_preds_lr))
         
+        plt.text(0.01, 0.7, str(classification_report(y_test, y_test_preds_rf)), {
+                'fontsize': 10}, fontproperties='monospace')  # approach improved by OP -> monospace!
+        
+        plt.text(0.01, 0.6, str('Random Forest Test Results'), {
+                'fontsize': 10}, fontproperties='monospace')
+        
+        plt.text(0.01, 0.3, str(classification_report(y_train, y_train_preds_rf)), {
+                'fontsize': 10}, fontproperties='monospace')  # approach improved by OP -> monospace!
+        
+        plt.text(0.6, 1, str('Logistic Regression Train Results'), {
+                'fontsize': 10}, fontproperties='monospace')
+       
+        plt.text(0.6, 0.7, str(classification_report(y_train, y_train_preds_lr)), {
+                'fontsize': 10}, fontproperties='monospace')  # approach improved by OP -> monospace!
+        
+        plt.text(0.6, 0.6, str('Logistic Regression Test Results'), {
+                'fontsize': 10}, fontproperties='monospace')
+        
+        plt.text(0.6, 0.3, str(classification_report(y_test, y_test_preds_lr)), {
+                'fontsize': 10}, fontproperties='monospace')  # approach improved by OP -> monospace!
 
-
+        plt.savefig(output_pth + 'model_results.png')
+        
 def feature_importance_plot(model, X_data, output_pth):
-    '''
-    creates and stores the feature importances in pth
-    input:
-            model: model object containing feature_importances_
-            X_data: pandas dataframe of X values
-            output_pth: path to store the figure
+        '''
+        creates and stores the feature importances in pth
+        input:
+                model: model object containing feature_importances_
+                X_data: pandas dataframe of X values
+                output_pth: path to store the figure
 
-    output:
-             None
-    '''
-    pass
+        output:
+                None
+        '''
+        
+        # Calculate feature importances
+        importances = model.feature_importances_
+        # Sort feature importances in descending order
+        indices = np.argsort(importances)[::-1]
+
+        # Rearrange feature names so they match the sorted feature importances
+        names = [X_data.columns[i] for i in indices]
+
+        # Create plot
+        plt.figure(figsize=(20,5))
+
+        # Create plot title
+        plt.title("Feature Importance")
+        plt.ylabel('Importance')
+
+        # Add bars
+        plt.bar(range(X_data.shape[1]), importances[indices])
+
+        # Add feature names as x-axis labels
+        plt.xticks(range(X_data.shape[1]), names, rotation=90);
+
+        # Save Plot
+        plt.savefig(output_pth + 'features.png')
 
 def train_models(feature_engineering_dict):
         '''
@@ -242,11 +259,13 @@ def train_models(feature_engineering_dict):
         plt.savefig('./images/model_4.png')
        
         
-        return y_train, y_test, y_train_preds_lr, y_train_preds_rf, y_test_preds_lr, y_test_preds_rf
+        return y_train, y_test, y_train_preds_lr, y_train_preds_rf, y_test_preds_lr, y_test_preds_rf, rfc_model, lr_model
 if __name__ == "__main__":
         df = import_data('./data/bank_data.csv')
         perform_eda(import_data('./data/bank_data.csv'))
         category_list=['Gender','Education_Level','Marital_Status','Income_Category','Card_Category']
-        df = (encoder_helper(df,category_list,)) 
-        a,b,c,d,e,f = train_models(perform_feature_engineering(df))
-        classification_report_image(a,b,c,d,e,f)
+        df = (encoder_helper(df,category_list))
+        model_dict, X_data =  perform_feature_engineering(df)
+        a,b,c,d,e,f,rfc_model, lr_model = train_models(model_dict)
+        # classification_report_image(a,b,c,d,e,f,'./images/')
+        feature_importance_plot(rfc_model, './', X_data)
