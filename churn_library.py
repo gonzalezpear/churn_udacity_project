@@ -7,13 +7,14 @@ import joblib
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
+import seaborn as sns; sns.set()
+
 from sklearn.preprocessing import normalize
 from sklearn.model_selection import train_test_split
 
 from sklearn.linear_model import LogisticRegression
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.model_selection import GridSearchCV
-import dataframe_image as dfi
 
 from sklearn.metrics import plot_roc_curve, classification_report
 
@@ -158,7 +159,7 @@ def classification_report_image(y_train,
 
         plt.savefig(output_pth + 'model_results.png')
         
-def feature_importance_plot(model, X_data, output_pth):
+def feature_importance_plot(cv_rfc, X_data, output_pth):
         '''
         creates and stores the feature importances in pth
         input:
@@ -171,7 +172,8 @@ def feature_importance_plot(model, X_data, output_pth):
         '''
         
         # Calculate feature importances
-        importances = model.feature_importances_
+        importances = cv_rfc.best_estimator_.feature_importances_
+        # importances = model.feature_importances_
         # Sort feature importances in descending order
         indices = np.argsort(importances)[::-1]
 
@@ -189,8 +191,8 @@ def feature_importance_plot(model, X_data, output_pth):
         plt.bar(range(X_data.shape[1]), importances[indices])
 
         # Add feature names as x-axis labels
-        plt.xticks(range(X_data.shape[1]), names, rotation=90);
-
+        plt.xticks(range(X_data.shape[1]), names, rotation=90)
+        # plt.subplots_adjust(bottom=.15)
         # Save Plot
         plt.savefig(output_pth + 'features.png')
 
@@ -212,7 +214,7 @@ def train_models(feature_engineering_dict):
 
         # grid search
         rfc = RandomForestClassifier(random_state=42)
-        lrc = LogisticRegression()
+        lrc = LogisticRegression(solver='lbfgs', max_iter=3000)
 
         param_grid = { 
         'n_estimators': [200, 500],
@@ -259,13 +261,13 @@ def train_models(feature_engineering_dict):
         plt.savefig('./images/model_4.png')
        
         
-        return y_train, y_test, y_train_preds_lr, y_train_preds_rf, y_test_preds_lr, y_test_preds_rf, rfc_model, lr_model
+        return y_train, y_test, y_train_preds_lr, y_train_preds_rf, y_test_preds_lr, y_test_preds_rf, rfc_model, lr_model, cv_rfc
 if __name__ == "__main__":
         df = import_data('./data/bank_data.csv')
         perform_eda(import_data('./data/bank_data.csv'))
         category_list=['Gender','Education_Level','Marital_Status','Income_Category','Card_Category']
         df = (encoder_helper(df,category_list))
         model_dict, X_data =  perform_feature_engineering(df)
-        a,b,c,d,e,f,rfc_model, lr_model = train_models(model_dict)
+        a,b,c,d,e,f,rfc_model, lr_model, cv_rfc = train_models(model_dict)
         # classification_report_image(a,b,c,d,e,f,'./images/')
-        feature_importance_plot(rfc_model, './', X_data)
+        feature_importance_plot(cv_rfc, X_data, './')
